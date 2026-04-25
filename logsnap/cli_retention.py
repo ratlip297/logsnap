@@ -1,17 +1,13 @@
-"""CLI helpers for the retention sub-command."""
-
-from __future__ import annotations
+"""CLI interface for retention policy commands."""
 
 import argparse
-from typing import List
-
-from logsnap.retention import RetentionPolicy, apply_retention, list_archives
+from logsnap.retention import RetentionPolicy, list_archives, apply_retention
 
 
 def add_retention_args(parser: argparse.ArgumentParser) -> None:
-    """Attach retention-related arguments to *parser*."""
+    """Add retention-related arguments to a parser."""
     parser.add_argument(
-        "--keep-last",
+        "--max-archives",
         type=int,
         default=None,
         metavar="N",
@@ -19,60 +15,59 @@ def add_retention_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--max-age-days",
-        type=int,
+        type=float,
         default=None,
         metavar="DAYS",
         help="Delete archives older than DAYS days.",
     )
     parser.add_argument(
-        "--archive-dir",
-        default=".",
-        metavar="DIR",
-        help="Directory to scan for archives (default: current directory).",
-    )
-    parser.add_argument(
-        "--prefix",
-        default="logsnap",
-        help="Archive filename prefix to match (default: logsnap).",
-    )
-    parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print what would be deleted without removing files.",
+        default=False,
+        help="Show what would be deleted without actually deleting.",
+    )
+    parser.add_argument(
+        "archive_dir",
+        help="Directory containing logsnap archives.",
     )
 
 
 def retention_policy_from_args(args: argparse.Namespace) -> RetentionPolicy:
+    """Build a RetentionPolicy from parsed CLI args."""
     return RetentionPolicy(
-        keep_last=args.keep_last,
+        max_archives=args.max_archives,
         max_age_days=args.max_age_days,
     )
 
 
-def run_retention_command(args: argparse.Namespace) -> List[str]:
-    """Execute retention pruning (or dry-run) and return list of affected paths."""
+def run_retention_command(args: argparse.Namespace) -> int:
+    """Execute the retention command. Returns exit code."""
     policy = retention_policy_from_args(args)
+    archives = list_archives(args.archive_dir)
 
-    if args.dry_run:
-        archives = list_archives(args.archive_dir, prefix=args.prefix)
-        # Simulate what would be deleted by applying policy to a temp copy — just report
-        # We reuse apply_retention on a real dir, so for dry-run we just list candidates.
-        print(f"[dry-run] scanning '{args.archive_dir}' with prefix '{args.prefix}'")
-        print(f"[dry-run] found {len(archives)} archive(s); policy: {policy}")
-        return [str(p) for p in archives]
+    if not archives:
+        print("No archives found.")
+        return 0
 
-    deleted = apply_retention(args.archive_dir, policy, prefix=args.prefix)
+    deleted = apply_retention(args.archive_dir, policy, dry_run=args.dry_run)
+
+    prefix = "[dry-run] Would delete" if args.dry_run else "Deleted"
     for path in deleted:
-        print(f"deleted: {path}")
-    if not deleted:
-        print("no archives removed")
-    return deleted
+        print(f"{prefix}: {path}")
+
+    if deleted:
+        print(f"{prefix} {len(deleted)} archive(s).")
+    else:
+        print("No archives removed.")
+
+    return 0
 
 
 def build_retention_parser() -> argparse.ArgumentParser:
+    """Build a standalone argument parser for the retention subcommand."""
     parser = argparse.ArgumentParser(
         prog="logsnap retention",
-        description="Prune old logsnap archives according to a retention policy.",
+        description="Apply retention policy to logsnap archives.",
     )
     add_retention_args(parser)
     return parser
