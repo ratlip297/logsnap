@@ -32,6 +32,12 @@ Filter logs by level or keyword before archiving:
 logsnap capture --services web --filter level=ERROR --filter keyword="timeout"
 ```
 
+Capture only logs from the last hour:
+
+```bash
+logsnap capture --services web api --since 1h --output ./snapshots
+```
+
 List existing snapshots:
 
 ```bash
@@ -53,6 +59,7 @@ logsnap inspect ./snapshots/snapshot_20240915_143022.tar.gz
 | `--output` | Directory to write the snapshot archive |
 | `--format` | Log format: `json` (default) or `text` |
 | `--since` | Capture logs since a relative time (e.g. `1h`, `30m`) |
+| `--dry-run` | Preview what would be captured without writing a snapshot |
 
 ---
 
