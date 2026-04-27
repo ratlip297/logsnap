@@ -50,6 +50,12 @@ Inspect a specific snapshot:
 logsnap inspect ./snapshots/snapshot_20240915_143022.tar.gz
 ```
 
+Diff two snapshots to see what changed between captures:
+
+```bash
+logsnap diff ./snapshots/snapshot_20240915_143022.tar.gz ./snapshots/snapshot_20240915_160511.tar.gz
+```
+
 ### Options
 
 | Flag | Description |
